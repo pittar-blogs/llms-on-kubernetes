@@ -1,0 +1,7 @@
+namespace: vllm-serving
+
+resources:
+  - config-secret.yaml
+  - deployment.yaml
+  - service.yaml
+  - route.yaml

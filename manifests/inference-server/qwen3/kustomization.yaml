@@ -1,0 +1,15 @@
+namespace: vllm-serving
+
+resources:
+  - ../granite
+
+patches:
+  - target:
+      kind: Deployment
+      name: vllm-inference
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args/1
+        value: "RedHatAI/Qwen3-8B-quantized.w4a16"
+      # - op: remove
+      #   path: /spec/template/spec/containers/0/args/5

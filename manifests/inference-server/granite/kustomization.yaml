@@ -1,0 +1,8 @@
+namespace: vllm-serving
+
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - route.yaml
