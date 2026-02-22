@@ -83,7 +83,7 @@ This is where the magic happens. I will deploy the vLLM engine.
 *   **Command**: I pass standard vLLM arguments like `--model`.
 *   **Resources**: I request 1 GPU.
 
-*File: `manifests/inference-server/grainte/deployment.yaml`*
+*File: `manifests/inference-server/granite/deployment.yaml`*
 
 ```yaml
 apiVersion: apps/v1
