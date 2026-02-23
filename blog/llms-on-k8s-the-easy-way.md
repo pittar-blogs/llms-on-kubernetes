@@ -122,7 +122,7 @@ spec:
             - "--download-dir"
             - "/data"
             - '--tensor-parallel-size=1'
-            - '--max-model-len=50000'
+            - '--max-model-len=32000'
           env:
             - name: HF_HUB_OFFLINE
               value: "0"
