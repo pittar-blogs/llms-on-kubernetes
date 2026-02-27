@@ -1,22 +1,18 @@
 # LLMs on Kubernetes: The Easy Way
 
-Sometimes, you just want to run an LLM — no Jupyter notebook, no training pipeline, no fancy UI. But running Large Language Models on Kubernetes can feel daunting: GPU drivers, massive container images, 50GB+ model downloads, and a sea of tuning parameters.
+![vllm](images/vllm.png)
 
-There are frontier model services like Claude, Gemini, and ChatGPT that are easy to get started with, but they're heavy, expensive, and come with privacy concerns. For many tasks, using them can feel like swatting a fly with a sledgehammer.
+Sometimes, you just want to run a Large Language Model (LLM)... no Jupyter notebook, no training pipeline, no fancy UI. Running LLMs on Kubernetes can feel daunting: GPU drivers, custom container images, gigabytes of model downloads, and endless tuning parameters.
 
-But it doesn't have to be this way. In this guide, I'll walk through the "easy way" to get a high-performance LLM up and running on Red Hat OpenShift using **Red Hat AI Inference Server** — Red Hat's supported, optimized build of the popular **vLLM** project. Not only is this process simple, it's also GitOps-ready and portable across clouds, on-prem data centres, and GPU providers. Let's go!
+Of course, there are frontier model services like Claude, Gemini, and ChatGPT that are easy to use, but they are heavy, expensive, and come with privacy concerns. For many tasks, using frontier models can feel like swatting a fly with a sledgehammer.
 
-<!-- TODO: Hero image. Suggested sources:
-     - Red Hat OpenShift + AI branded graphic from https://www.redhat.com/en/technologies/cloud-computing/openshift/ai
-     - vLLM project banner from https://github.com/vllm-project/vllm
-     - A clean "AI on Kubernetes" concept image from Unsplash (search: "server artificial intelligence") -->
-![LLMs running on Red Hat OpenShift](IMAGE_URL_HERE)
+Thankfully, there is another way! In this guide, I'll walk through the "easy way" to get a high-performance LLM up and running on Red Hat OpenShift using [Red Hat AI Inference Server](https://www.redhat.com/en/products/ai/inference-server), Red Hat's supported and optimized build of the extremely popular [vLLM](https://docs.vllm.ai/en/latest/) project. Not only is this process simple, it's also GitOps-ready and portable across clouds, on-prem data centres, and GPU providers. Let's go!
 
 ## Why Red Hat AI Inference Server (vLLM)?
 
-vLLM has emerged as a standard for open-source model serving due to its high throughput, memory efficiency, and ability to abstract away the underlying hardware. vLLM offers up to 10x the throughput of other popular serving runtimes such as Ollama along with lower latency and better concurrent request handling. 
+[vLLM](https://docs.vllm.ai/en/latest/) has emerged as a de facto standard for open-source model serving due to its high throughput, memory efficiency, and ability to abstract away the underlying hardware. vLLM offers up to 10x the throughput of other popular serving runtimes such as Ollama along with lower latency and better concurrent request handling. 
 
-Red Hat AI Inference Server packages this engine into a secure, supported container image that runs seamlessly on Red Hat OpenShift and other Kubernetes distributions. For now, I'll concentrate on Red Hat OpenShift. Since "OpenShift is OpenShift", this guide will work just as well in the cloud, in your own data centre (virtualized or on bare metal), or even in an air gapped environment (you will need to pre-download the models, of course).  This platform consistency is just one reason why OpenShift is awesome... but that's not the subject for today, so let's get going!
+**Red Hat AI Inference Server** packages this engine into a secure, supported container image that runs seamlessly on Red Hat OpenShift and other Kubernetes distributions. For now, I'll concentrate on Red Hat OpenShift. Since "OpenShift is OpenShift", this guide will work just as well in the cloud, in your own data centre (virtualized or on bare metal), or even in an air gapped environment (you will need to pre-download the models, of course).  This platform consistency is just one reason why OpenShift is awesome... but that's not the subject for today, so let's get going!
 
 ## Prerequisites
 
@@ -28,6 +24,19 @@ To follow along, you will need:
 4.  **OpenShift CLI (`oc`)**: Installed and logged in.
 5.  **Hugging Face Token (optional)**: If you plan to use a gated model (like Llama 3).
 
+## A Quick Note on Node Feature Discover (NFD) and Nvidia Operators
+
+If you're unsure how to go about deploying the NFD and Nvidia operators, it's actually quite easy.  Thanks to [Bryden Stack](https://github.com/turbra/ocp-nvidia-inference/tree/main?tab=readme-ov-file#openshift-node-feature-discovery-and-nvidia-gpu-operator-deployment) for the pointers:
+
+- Installing Node Feature Discovery Operator using the Web Console
+  - Accept defaults
+  - Create NodeFeatureDiscovery using Form View
+    - Accept defaults
+- Install Nvidia GPU Operator
+  - Accept defaults
+  - Create ClusterPolicy 
+    - Accept defaults
+
 ## What We'll Deploy
 
 The requirements for this demo are refreshingly simple.  All manifests are provided in this repository so you don't have to copy/paste:
@@ -35,12 +44,6 @@ The requirements for this demo are refreshingly simple.  All manifests are provi
 1.  **Persistent Volume (PVC)**: To store the model(s) that you download from [HuggingFace](https://huggingface.co/).
 2.  **Deployment**: Runs the RHOAI Inference Server container, mounts the PVC, and requests a GPU.
 3.  **Service & Route**: Exposes the OpenAI-compatible API to the outside world.
-
-<!-- TODO: Architecture diagram showing the three components and how they connect:
-     HuggingFace → (download) → PVC ← Deployment (GPU) → Service → Route → External clients
-     Suggested tools: draw.io (https://app.diagrams.net), Excalidraw (https://excalidraw.com),
-     or grab a diagram from the repo's README if one exists. Export as PNG and upload to Medium. -->
-![Architecture diagram: PVC, Deployment, Service and Route](IMAGE_URL_HERE)
 
 ## Step 1: Create a Project and Secrets
 
@@ -61,7 +64,7 @@ oc create secret generic hf-token \
 
 ## Step 2: The Model Storage (PVC)
 
-LLMs are huge!  However, the ones that we will test today aren't too bad... less than 10GB each. We'll create a PVC big enough to hold two models for now:
+LLMs are huge!  However, the ones that we will test today aren't too bad... less than 10GB each. We'll create a PVC big enough to hold two models comfortably for now:
 
 *File: `manifests/inference-server/granite/pvc.yaml`*
 
@@ -89,7 +92,7 @@ This is where the magic happens. The deployment has three key settings:
 
 *   **Image**: The RHOAI inference server image (e.g., `registry.redhat.io/rhoai/rhoai-vllm-rhel9:latest` or similar).
 *   **Command**: Standard vLLM arguments like `--model`.
-*   **Resources**: A single GPU.
+*   **Resources**: A single GPU (in my case an RTX 5060 Ti with 16GB VRAM)
 
 *File: `manifests/inference-server/granite/deployment.yaml`*
 
@@ -138,7 +141,13 @@ spec:
             - containerPort: 8000
           resources:
             limits:
-              nvidia.com/gpu: 1
+              cpu: '4'
+              nvidia.com/gpu: '1'
+              memory: 12Gi
+            requests:
+              cpu: 500m
+              memory: 8Gi
+              nvidia.com/gpu: '1'
           volumeMounts:
             - name: model-data
               mountPath: /data
@@ -153,7 +162,7 @@ Apply it:
 oc apply -f manifests/inference-server/granite/deployment.yaml
 ```
 
-Easy, right?  Now, this is going to take a while - it is downloading a multi-GB model then starting the serving engine.  However, from a simplicity point of view, it's hard to beat that single YAML deployment!
+Easy, right?  Now, this is going to take a while since it's downloading a multi-GB model then starting the serving engine.  However, from a simplicity point of view, it's hard to beat that single YAML deployment!
 
 You can watch vLLM start and follow the process of it loading the model onto your GPU with the following command:
 
@@ -166,11 +175,6 @@ You will know when it's ready to accept requests when you see this line in your 
 ```bash
 (APIServer pid=1) INFO:     Application startup complete.
 ```
-
-<!-- TODO: Screenshot of the vLLM startup logs in a terminal or the OpenShift console log viewer,
-     showing the model loading onto the GPU and the final "Application startup complete." line.
-     Take a screenshot while running through the demo and upload it to Medium. -->
-![vLLM startup logs showing the model loading and the inference server becoming ready](IMAGE_URL_HERE)
 
 ## Step 4: Expose the Service
 
@@ -223,27 +227,19 @@ If you wanted to do all the above in one simple command, you could have used the
 oc apply -k manifests/inference-server/granite
 ```
 
-## Step 5: Verify It's Working
+Of course, if you're already familiar with GitOps then you probably already have a good idea of how you can manage this with OpenShift GitOps (Argo CD) as well.
 
-Wait for the pod to become ready (this may take a few minutes while it downloads the model weights to the PVC).
+## Step 5: Verify vLLM Is Working
 
-```bash
-oc get pods -w
-```
+The Granite model should now be deployed and running (see the command in *Step 4* to view the logs if you're unsure).
 
-If you view the pod logs, you'll know the model is running when you see the following line appear at the end of the log:
-
-```
-(APIServer pid=1) INFO: Application startup complete.
-```
-
-Once running, get your route URL:
+Get your route URL:
 
 ```bash
 export LLM_HOST=$(oc get route inference -o jsonpath='{.spec.host}')
 ```
 
-Now, test it with a simple curl command! The first request will take some time as the model "warms up", so be patient.
+Now, test it with a simple curl command. The first request will take some time as the model "warms up", so be patient.
 
 ```bash
 curl -k https://$LLM_HOST/v1/completions \
@@ -256,10 +252,7 @@ curl -k https://$LLM_HOST/v1/completions \
   }'
 ```
 
-<!-- TODO: Screenshot of the curl command above returning a successful JSON response from the model,
-     showing the "choices" array with a generated text completion.
-     Take a screenshot from your terminal while running through the demo and upload it to Medium. -->
-![The OpenAI-compatible API returning a completion response from the Granite model](IMAGE_URL_HERE)
+![curl output from terminal](images/curl.png)
 
 ## Step 6: Try a Different Model
 
@@ -314,20 +307,16 @@ oc apply -k manifests/anythingllm
 
 Once the AnythingLLM pod is healthy, access the new route and select "Send chat". Enter a name for your workspace then start chatting away with your model!  The first request might take some time as the model warms up.
 
-<!-- TODO: Screenshot of the AnythingLLM chat UI in the browser, showing a conversation with
-     the Granite or Qwen3 model running on your OpenShift cluster.
-     Take a screenshot while running through the demo and upload it to Medium. -->
-![AnythingLLM chat UI connected to the self-hosted model running on OpenShift](IMAGE_URL_HERE)
+![anythingllm](images/anythingllm.png)
 
 And there you have it, you've deployed a model using Red Hat AI Inference Server (vLLM) and an open source UI to chat with it.  The best part?  It doesn't matter if your cluster is on AWS, Azure, Google Cloud, or in your own data centre... it's all the same! Run the models that you want to run where you want to run them.
 
 ## Conclusion
 
-That's it! You now have a high-performance, GPU-accelerated LLM inference server running on OpenShift.
+That's it! You now have a high-performance, GPU-accelerated LLM inference server running on OpenShift. That's pretty impressive if you ask me, but we can level this up even more.  I'll be following this up with more blog posts in this series to cover:
 
-From here, you can:
-1.  Scale up `replicas` to handle more traffic.
-2.  Enable metrics to monitor GPU usage.
-3.  Integrate this API into your internal applications.
+1. Enabling metrics to monitor GPU usage and vLLM performance.
+2. Integrating your models into your applications, IDEs, and CI processes.
+3. Scaling up to handle more traffic (spolier - this might also include [llm-d](https://llm-d.ai/)).
 
-However, these are topics for future blog posts.  In the meantime, I encourage you to take a deeper dive of the [vLLM documentation](https://docs.vllm.ai/en/latest/) and read up on [Red Hat AI Inference Server](https://docs.redhat.com/en/documentation/red_hat_ai_inference_server/latest).  If this has piqued your interest, then please reach out to me or your local Red Hat team for more information on Red Hat AI Inference server.  Happy inferencing!
+In the meantime, I encourage you to take a deeper dive of the [vLLM documentation](https://docs.vllm.ai/en/latest/) and read up on [Red Hat AI Inference Server](https://docs.redhat.com/en/documentation/red_hat_ai_inference_server/latest).  If this has piqued your interest, then please reach out to me or your local Red Hat team for more information on Red Hat AI Inference server.  Happy inferencing!

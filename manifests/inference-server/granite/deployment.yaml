@@ -42,7 +42,13 @@ spec:
             - containerPort: 8000
           resources:
             limits:
-              nvidia.com/gpu: 1
+              cpu: '4'
+              nvidia.com/gpu: '1'
+              memory: 12Gi
+            requests:
+              cpu: 500m
+              memory: 8Gi
+              nvidia.com/gpu: '1'
           volumeMounts:
             - name: model-data
               mountPath: /data
