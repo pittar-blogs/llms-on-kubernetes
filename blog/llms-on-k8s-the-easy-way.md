@@ -47,7 +47,14 @@ The requirements for this demo are refreshingly simple.  All manifests are provi
 
 ## Step 1: Create a Project and Secrets
 
-First, create a new project/namespace for this demo.
+Start by cloning my demo repository:
+
+```bash
+git clone https://github.com/pittar-blogs/llms-on-kubernetes.git
+cd llms-on-kubernetes
+```
+
+Next, create a new project/namespace for this demo.
 
 ```bash
 oc apply -f manifests/inference-server/granite/namespace.yaml
@@ -91,7 +98,7 @@ oc apply -f manifests/inference-server/granite/pvc.yaml
 This is where the magic happens. The deployment has three key settings:
 
 *   **Image**: The RHOAI inference server image (e.g., `registry.redhat.io/rhoai/rhoai-vllm-rhel9:latest` or similar).
-*   **Command**: Standard vLLM arguments like `--model`.
+*   **Arguments**: Standard vLLM arguments like `--model`.
 *   **Resources**: A single GPU (in my case an RTX 5060 Ti with 16GB VRAM)
 
 *File: `manifests/inference-server/granite/deployment.yaml`*
@@ -254,6 +261,8 @@ curl -k https://$LLM_HOST/v1/completions \
 
 ![curl output from terminal](images/curl.png)
 
+You are now officially serving an LLM! That's pretty fantastic, but there's still more.
+
 ## Step 6: Try a Different Model
 
 For fun, let's try a different model. We already have a Deployment ready to go to serve `Qwen3-8B-quantized`.  Barely anything changes in the deployment other than the model name that is referenced:
@@ -283,7 +292,7 @@ You're now serving `Qwen3-8B-quantized.w4a16` instead of `granite-3.1-8b-instruc
 
 ## Step 7: Add A UI
 
-Sometimes, it's just nicer to test with a UI. Let's deploy an instance of AnythingLLM so we can chat with our model without having to craft `curl` commands.
+Sometimes, it's just easier to test with a UI. Let's deploy an instance of AnythingLLM so we can chat with our model without having to craft `curl` commands.
 
 First, copy your LLM route URL.  You can find it by running:
 
@@ -317,6 +326,6 @@ That's it! You now have a high-performance, GPU-accelerated LLM inference server
 
 1. Enabling metrics to monitor GPU usage and vLLM performance.
 2. Integrating your models into your applications, IDEs, and CI processes.
-3. Scaling up to handle more traffic (spolier - this might also include [llm-d](https://llm-d.ai/)).
+3. Scaling up to handle more traffic (spoiler - this might also include [llm-d](https://llm-d.ai/)).
 
 In the meantime, I encourage you to take a deeper dive of the [vLLM documentation](https://docs.vllm.ai/en/latest/) and read up on [Red Hat AI Inference Server](https://docs.redhat.com/en/documentation/red_hat_ai_inference_server/latest).  If this has piqued your interest, then please reach out to me or your local Red Hat team for more information on Red Hat AI Inference server.  Happy inferencing!
